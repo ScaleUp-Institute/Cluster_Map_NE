@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UK Scaleup Map — Scaleup Institute</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css?v=62" />
+</head>
+<body>
+<div class="app">
+
+  <!-- ============================ TOP BAR ============================ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark"><img src="data/company_ logo.png" alt="Scaleup Institute logo"></span>
+      <span class="names">
+        <span class="org">Scaleup Institute</span>
+        <span class="product">UK Scaleup Map</span>
+        <span class="scope-tag" id="scopeTag" hidden></span>
+      </span>
+    </div>
+
+    <nav class="dashtabs" aria-label="Dashboard sections">
+      <button type="button" data-tab="map" aria-selected="true">Map</button>
+      <button type="button" data-tab="overview">Overview</button>
+      <button type="button" data-tab="sectors">Sectors</button>
+      <button type="button" data-tab="regions">Regions</button>
+      <button type="button" data-tab="constituencies">Constituencies</button>
+      <button type="button" data-tab="investment">Investment</button>
+      <!-- Analysis hidden for now — remove the `hidden` attribute to bring it back. -->
+      <button type="button" data-tab="analysis" hidden>Analysis</button>
+      <button type="button" data-tab="public">Public sector</button>
+    </nav>
+
+    <div class="spacer"></div>
+
+    <button id="helpBtn" class="ghost-btn" type="button">How to read this map</button>
+    <button id="detailToggle" class="iconbtn" type="button" title="Show / hide the stats panel" aria-label="Toggle stats panel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>
+    </button>
+    <button id="themeToggle" class="iconbtn" type="button" title="Toggle light / dark" aria-label="Toggle light or dark theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+    </button>
+    <button id="exportBtn" class="btn-primary" type="button" title="Download the current map as an image">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg><span>Export</span>
+    </button>
+  </header>
+
+  <!-- ============================ TAB: OVERVIEW ============================ -->
+  <div class="tabpane" id="tab-overview" hidden>
+    <div class="dash">
+      <div class="dash-head"><div><h1>Overview</h1><p class="dash-sub" id="ovSub">The UK's high-growth company population at a glance.</p></div></div>
+      <div class="dash-active" id="overviewActive"></div>
+      <div class="kpi-row kpi-6" id="ovKpis"></div>
+      <div class="insight-row" id="ovInsights"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Companies by sector</h3><div class="chart-canvas"><canvas id="ovSectorDoughnut"></canvas></div></div>
+        <div class="chart-card"><h3>Companies by region</h3><div class="chart-canvas"><canvas id="ovRegionBar"></canvas></div></div>
+        <div class="chart-card"><h3>Top investors — companies backed</h3><div class="chart-canvas"><canvas id="ovInvBar"></canvas></div></div>
+        <div class="chart-card"><h3>Women-led by sector</h3><div class="chart-canvas"><canvas id="ovFemBar"></canvas></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ TAB: MAP ============================ -->
+  <div class="tabpane" id="tab-map">
+    <div class="body">
+      <aside class="rail" id="rail">
+        <!-- Every active filter, in one place, each one individually removable.
+             Without this the rail's five collapsed sections can hide a filter
+             that is silently cutting the map down. -->
+        <div class="activebar" id="activeBar" hidden></div>
+
+        <section class="rail-sec collapsible" data-group="clusters">
+          <button class="sec-head sec-toggle" type="button"><h2>Clusters</h2><span class="chev">▾</span></button>
+          <div class="sec-body">
+            <div class="sub-head"><span>Sector clusters</span><div class="linkbtns"><button class="linkbtn" id="selAll">All</button><button class="linkbtn" id="selNone">Clear</button></div></div>
+            <div class="chips" id="chips"></div>
+            <div class="sub-head sub-head-mt">Filters</div>
+            <div class="toggle-row is-dev" title="Under development — data coming soon">
+              <div class="tl"><span class="name">Mid-Market</span><span class="meta">Under development</span></div><span class="soon">soon</span>
+            </div>
+            <button type="button" class="toggle-row toggle-btn" id="femBtn" aria-pressed="false"
+                    title="Show only women-led companies">
+              <span class="tl"><span class="name">Women-Led</span><span class="meta">Show only these companies</span></span>
+              <span class="key"></span>
+            </button>
+          </div>
+        </section>
+
+        <section class="rail-sec collapsible collapsed" data-group="size">
+          <button class="sec-head sec-toggle" type="button"><h2>Size &amp; growth</h2><span class="chev">▾</span></button>
+          <div class="sec-body">
+            <div class="rng" id="rngTurn">
+              <div class="rng-head"><span class="rng-title"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 12.5h10M5.5 9.5h4M9.5 3.2a2.6 2.6 0 0 0-4 2.2v4.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Turnover</span><b class="rng-val">Any</b></div>
+              <div class="rng-track">
+                <div class="rng-fill"></div>
+                <input type="range" class="rng-lo" min="0" step="1" value="0" aria-label="Minimum turnover">
+                <input type="range" class="rng-hi" min="0" step="1" aria-label="Maximum turnover">
+              </div>
+              <div class="rng-nums">
+                <input type="text" class="rng-min" inputmode="decimal" placeholder="Min" aria-label="Turnover, exact value">
+                <span class="rng-dash">to</span>
+                <input type="text" class="rng-max" inputmode="decimal" placeholder="Max" aria-label="Turnover, exact value">
+              </div>
+            </div>
+            <div class="rng" id="rngEmp">
+              <div class="rng-head"><span class="rng-title"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="6" cy="5.2" r="2.3" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M1.8 13c0-2.3 1.9-3.6 4.2-3.6S10.2 10.7 10.2 13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M11 3.4a2.1 2.1 0 0 1 0 4M12.4 9.9c1.3.4 2 1.5 2 3.1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Employees</span><b class="rng-val">Any</b></div>
+              <div class="rng-track">
+                <div class="rng-fill"></div>
+                <input type="range" class="rng-lo" min="0" step="1" value="0" aria-label="Minimum employees">
+                <input type="range" class="rng-hi" min="0" step="1" aria-label="Maximum employees">
+              </div>
+              <div class="rng-nums">
+                <input type="text" class="rng-min" inputmode="decimal" placeholder="Min" aria-label="Employees, exact value">
+                <span class="rng-dash">to</span>
+                <input type="text" class="rng-max" inputmode="decimal" placeholder="Max" aria-label="Employees, exact value">
+              </div>
+            </div>
+            <div class="rng" id="rngGrow">
+              <div class="rng-head"><span class="rng-title"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 11.6 6 7.4l2.6 2.4L13.4 4.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.4 4.6h3v3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Avg. growth rate</span><b class="rng-val">Any</b></div>
+              <div class="rng-track">
+                <div class="rng-fill"></div>
+                <input type="range" class="rng-lo" min="0" step="1" value="0" aria-label="Minimum annual growth">
+                <input type="range" class="rng-hi" min="0" step="1" aria-label="Maximum annual growth">
+              </div>
+              <div class="rng-nums">
+                <input type="text" class="rng-min" inputmode="decimal" placeholder="Min" aria-label="Growth a year, exact value">
+                <span class="rng-dash">to</span>
+                <input type="text" class="rng-max" inputmode="decimal" placeholder="Max" aria-label="Growth a year, exact value">
+              </div>
+              <div class="rng-src">Three-year employment growth.</div>
+            </div>
+            <div class="rng-foot">
+              <button class="linkbtn" id="sizeReset" type="button">Reset all three</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="rail-sec collapsible collapsed" data-group="regions">
+          <button class="sec-head sec-toggle" type="button"><h2>Regions</h2><span class="chev">▾</span></button>
+          <div class="sec-body">
+            <div class="sub-head"><span>Regions &amp; nations</span><div class="linkbtns"><button class="linkbtn" id="regAll">All</button><button class="linkbtn" id="regNone">Clear</button></div></div>
+            <div class="region-list" id="regionList"></div>
+          </div>
+        </section>
+
+        <section class="rail-sec collapsible collapsed" data-group="mps">
+          <button class="sec-head sec-toggle" type="button"><h2>MPs &amp; constituencies</h2><span class="chev">▾</span></button>
+          <div class="sec-body">
+            <div class="field-label">Show on map</div>
+            <select id="conMode" class="dd" aria-label="Show constituencies">
+              <option value="off">Off</option>
+              <option value="gov">Government-held seats</option>
+              <option value="all">All 650 seats</option>
+            </select>
+            <div class="field-label">Party</div>
+            <select id="conParty" class="dd" aria-label="Party"><option value="">All parties</option></select>
+            <div class="field-label">Find</div>
+            <div class="inv-search-wrap">
+              <input id="conSearch" type="text" placeholder="Search MP, seat or role…" autocomplete="off" />
+            </div>
+            <div id="conStatus" class="con-status"></div>
+            <div id="conSummary" class="proc-summary"></div>
+            <div id="conLegend" class="con-legend"></div>
+            <div id="conResults" class="con-results"></div>
+          </div>
+        </section>
+
+        <section class="rail-sec collapsible collapsed" data-group="investors">
+          <button class="sec-head sec-toggle" type="button"><h2>Funding &amp; investors</h2><span class="chev">▾</span></button>
+          <div class="sec-body">
+            <!-- The broadest question first. Everything below narrows it. -->
+            <button type="button" class="toggle-row toggle-btn" id="fundAnyBtn" aria-pressed="false"
+                    title="Any company that has raised equity or received a grant">
+              <span class="tl"><span class="name">Any funding received</span><span class="meta">Equity, grant or a named investor</span></span>
+              <span class="key"></span>
+            </button>
+
+            <!-- Funding FLAGS pick companies by what they received. Kept apart from
+                 the investor controls below, which pick by who backed them — these
+                 are not subsets of one another. -->
+            <div class="sub-head sub-head-mt">Public funding received</div>
+            <div class="seg" id="flagSeg"></div>
+
+            <div class="sub-head sub-head-mt">Backed by an investor</div>
+            <button id="invAllBtn" class="rail-btn" type="button">Show all investor-backed</button>
+            <div class="rail-hint" id="invAllHint"></div>
+            <div class="field-label">Investor type</div>
+            <div class="inv-cat" id="invTypeWrap">
+              <div class="inv-cat-field" id="invTypeField"><span class="ph">All investor types…</span></div>
+              <div class="inv-cat-menu" id="invTypeMenu"></div>
+            </div>
+            <div class="field-label">Investor group</div>
+            <div class="inv-cat" id="invCatWrap">
+              <div class="inv-cat-field" id="invCatField"><span class="ph">Any investor group…</span></div>
+              <div class="inv-cat-menu" id="invCatMenu"></div>
+            </div>
+            <div class="inv-search-wrap">
+              <input id="invSearch" type="text" placeholder="Search a specific investor…" autocomplete="off" />
+              <div id="invSuggest" class="inv-suggest"></div>
+            </div>
+            <div id="invSelected" class="inv-selected"></div>
+
+            <div class="sub-head sub-head-mt">Display</div>
+            <button id="invOriginBtn" class="rail-btn" type="button">Colour pins by investor origin</button>
+            <div class="rail-hint" id="originHint" hidden>Changes how investor pins look. Turn on a funding filter above to put pins on the map.</div>
+          </div>
+        </section>
+
+        <div class="rail-standalone">
+          <button id="primesBtn" class="rail-btn" type="button">Show Primes</button>
+          <button id="procurementBtn" class="rail-btn" type="button">Show Procurement</button>
+          <div class="proc-filters" id="procFilters" hidden>
+            <div class="sub-head">Procurement filters</div>
+            <select id="procBuyerType" class="dd" aria-label="Buyer type"><option value="">All buyer types</option></select>
+            <select id="procMinValue" class="dd" aria-label="Minimum contract value">
+              <option value="0">Any contract value</option>
+              <option value="100000">£100K and above</option>
+              <option value="1000000">£1M and above</option>
+              <option value="10000000">£10M and above</option>
+              <option value="100000000">£100M and above</option>
+            </select>
+            <label class="proc-check"><input type="checkbox" id="procSme"> SME suppliers only</label>
+            <label class="proc-check"><input type="checkbox" id="procFramework"> On a framework only</label>
+            <div class="proc-summary" id="procSummary"></div>
+          </div>
+        </div>
+
+        <section class="rail-sec collapsible collapsed" data-group="ecosystem">
+          <button class="sec-head sec-toggle" type="button"><h2>Ecosystem</h2><span class="chev">▾</span></button>
+          <div class="sec-body">
+            <select id="ecoSelect" class="dd" aria-label="Ecosystem overlay">
+              <option value="none">None</option>
+              <option value="universities">Universities</option>
+              <option value="infrastructure">Infrastructure</option>
+              <option value="support">Support programmes</option>
+              <option value="all">Show all</option>
+            </select>
+            <div id="ecoLegend" class="eco-legend"></div>
+          </div>
+        </section>
+
+        <div class="rail-foot">
+          <button id="methodBtn" class="ghost-btn wide" type="button"><span class="i">i</span> Data &amp; Methodology</button>
+          <div id="methodContent" class="method-content" hidden>
+            <ul>
+              <li>Clusters of projected scaling businesses are identified using HDBSCAN methodology by the ScaleUp Institute, analysing the locations of existing scaleups, scaling firms and businesses projected to scale.</li>
+              <li>Scaleups follow the OECD definition: at least 10 employees at the start of the period and average annual growth above 20% in employment or turnover over three years.</li>
+              <li>Scaling pipeline businesses follow the Eurostat definition: at least 10 employees and average annual employment or turnover growth above 10% over three years.</li>
+            </ul>
+          </div>
+        </div>
+      </aside>
+
+      <div class="mapwrap" id="mapwrap">
+        <div id="map"></div>
+        <div class="display-pill" role="group" aria-label="Display mode" style="display:none;">
+          <button data-mode="points" type="button">Points</button>
+          <button data-mode="polygons" type="button">Polygons</button>
+          <button data-mode="both" type="button" aria-selected="true">Both</button>
+        </div>
+        <div class="map-loading" id="mapLoading"><span class="spin"></span> Loading companies…</div>
+        <!-- Every left-hand map overlay lives in one column: the procurement list is
+             pinned to the top, the legends stack up from the bottom, and the column
+             clears Leaflet's zoom control. They can no longer overlap each other. -->
+        <div class="map-overlays" id="mapOverlays">
+          <div id="procurement-list" class="proc-panel">
+            <div class="proc-head">
+              <span>Procurement</span>
+              <span class="proc-head-r"><span id="procurement-count"></span><button id="procurement-collapse" type="button" aria-expanded="true">Hide</button></span>
+            </div>
+            <div id="procurement-body"></div>
+          </div>
+          <div class="legend-stack" id="legendStack">
+            <!-- The three marker keys share one box: separate boxes spent ~80px of
+                 scarce column height on duplicate borders, padding and titles. Each
+                 group is still shown/hidden independently by its own id. -->
+            <div id="marker-legend" class="map-legend-box" style="display:none;">
+              <div class="pl-title">Map markers</div>
+              <div class="pl-group" id="primes-legend" style="display:none;">
+                <div class="pl-sub">Primes</div>
+                <div class="pl-row"><img src="data/prime marker.png" alt=""> Single-sector Prime</div>
+                <div class="pl-row"><img src="data/prime multi marker.png" alt=""> Multi-sector Prime</div>
+                <span class="pl-note">A separate reference layer of large multi-site firms &mdash; only 12 of the 191 are in the scaleup population, so this layer follows sector and region only, not the company filters.</span>
+              </div>
+              <div class="pl-group" id="procurement-legend" style="display:none;">
+                <div class="pl-sub">Procurement</div>
+                <div class="pl-row"><img src="data/procurement marker.png" alt=""> Scaleup with public-sector contracts</div>
+              </div>
+              <div class="pl-group" id="female-legend" style="display:none;">
+                <div class="pl-sub">Women-led</div>
+                <div class="pl-row"><i class="dotkey" id="femKey"></i> Women-led scaleup</div>
+              </div>
+              <div class="pl-group" id="investor-legend" style="display:none;">
+                <div class="pl-sub">Investor-backed scaleups</div>
+                <div class="pl-row" id="ilUK"></div>
+                <div class="pl-row" id="ilBBB"></div>
+                <div class="pl-row" id="ilIUK"></div>
+                <div class="pl-row" id="ilDual"></div>
+              </div>
+            </div>
+            <div class="legend" id="legend">
+              <div class="legend-head"><span>Sectors</span><button id="legendToggle" type="button">Hide</button></div>
+              <div class="rows" id="legendRows"></div>
+            </div>
+          </div>
+        </div>
+        <!-- TEMPORARY: plays while the Women-Led filter is on. The file is
+             gitignored (124MB), so this hides itself if it cannot load. -->
+        <div id="femVideo" class="fem-video" hidden>
+          <div class="fv-head"><span>Girl power</span>
+            <button id="femVideoClose" type="button" aria-label="Hide video">&times;</button></div>
+          <video id="femVideoEl" src="media/spicegirls.mp4" loop playsinline preload="none"></video>
+        </div>
+        <img src="data/company_ logo.png" id="watermark" alt="Scaleup Institute" />
+      </div>
+
+      <aside class="detail" id="detail">
+        <div class="dhead">
+          <div class="kicker" id="dKicker">Overview</div>
+          <div class="rname" id="dName">United Kingdom</div>
+          <div class="rsub" id="dSub">All companies</div>
+          <div class="dhead-btns">
+            <button class="closex" id="detailReset" title="Reset selection" aria-label="Reset selection" hidden>&times;</button>
+            <button class="closex" id="detailCollapse" title="Hide panel" aria-label="Hide stats panel">&rsaquo;</button>
+          </div>
+        </div>
+        <div class="block mp-card" id="conMpCard" hidden></div>
+        <div class="statgrid" id="statGrid"></div>
+        <div class="block"><h3>Sector mix</h3><div class="detail-chart"><canvas id="detailSectorChart"></canvas></div><div id="sectorMixEmpty" class="empty" style="display:none">No companies in this selection.</div></div>
+        <div class="block"><h3 id="invListTitle">Top investors</h3><div class="inv-list" id="invList"></div></div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- ============================ TAB: SECTORS ============================ -->
+  <div class="tabpane" id="tab-sectors" hidden>
+    <div class="dash">
+      <div class="dash-head"><div><h1>Sectors</h1><p class="dash-sub" id="secSub">How the UK's scaleup population breaks down by sector.</p></div>
+        <div class="dash-filters"><select id="secRegionFilter" class="dd"><option value="">All regions</option></select></div>
+      </div>
+      <div class="dash-active" id="sectorsActive"></div>
+      <div class="kpi-row" id="secKpis"></div>
+      <div class="insight-row" id="secInsights"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Companies by sector</h3><div class="chart-canvas"><canvas id="secCompanies"></canvas></div></div>
+        <div class="chart-card"><h3>Turnover by sector</h3><div class="chart-canvas"><canvas id="secTurnover"></canvas></div></div>
+        <div class="chart-card"><h3>Employees by sector</h3><div class="chart-canvas"><canvas id="secEmployees"></canvas></div></div>
+        <div class="chart-card"><h3>Investment by sector</h3><div class="chart-canvas"><canvas id="secInvestment"></canvas></div></div>
+      </div>
+      <div class="dash-table-wrap"><div id="secTable"></div></div>
+    </div>
+  </div>
+
+  <!-- ============================ TAB: REGIONS ============================ -->
+  <div class="tabpane" id="tab-regions" hidden>
+    <div class="dash">
+      <div class="dash-head"><div><h1>Regions</h1><p class="dash-sub">Comparing the UK's regions and nations.</p></div>
+        <div class="dash-filters"><select id="regSectorFilter" class="dd"><option value="">All sectors</option></select></div>
+      </div>
+      <div class="dash-active" id="regionsActive"></div>
+      <div class="kpi-row" id="regKpis"></div>
+      <div class="insight-row" id="regInsights"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Companies by region</h3><div class="chart-canvas"><canvas id="regCompanies"></canvas></div></div>
+        <div class="chart-card"><h3>Turnover by region</h3><div class="chart-canvas"><canvas id="regTurnover"></canvas></div></div>
+        <div class="chart-card"><h3>Investment by region</h3><div class="chart-canvas"><canvas id="regInvestment"></canvas></div></div>
+        <div class="chart-card"><h3>Women-led by region</h3><div class="chart-canvas"><canvas id="regFemale"></canvas></div></div>
+      </div>
+      <div class="dash-table-wrap"><div id="regTable"></div></div>
+    </div>
+  </div>
+
+  <!-- ============================ TAB: CONSTITUENCIES ============================ -->
+  <div class="tabpane" id="tab-constituencies" hidden>
+    <div class="dash">
+      <div class="dash-head"><div><h1>Constituencies &amp; MPs</h1><p class="dash-sub">How the scaleup population maps onto the 650 Westminster seats and the MPs who hold them.</p></div>
+        <div class="dash-filters">
+          <select id="cdScope" class="dd"><option value="all">All 650 seats</option><option value="gov">Government-held seats</option></select>
+          <select id="cdParty" class="dd"><option value="">All parties</option></select>
+        </div>
+      </div>
+      <div id="cdStatus" class="con-status"></div>
+      <div class="kpi-row" id="cdKpis"></div>
+      <div class="insight-row" id="cdInsights"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Top constituencies by scaleups</h3><div class="chart-canvas tall"><canvas id="cdTopSeats"></canvas></div></div>
+        <div class="chart-card"><h3>Scaleups by party <span class="chart-note">party of the sitting MP</span></h3><div class="chart-canvas tall"><canvas id="cdByParty"></canvas></div></div>
+        <div class="chart-card"><h3>Government-held vs other seats <span class="chart-note">share of all scaleups</span></h3><div class="chart-canvas"><canvas id="cdGovSplit"></canvas></div></div>
+        <div class="chart-card"><h3>Top government-held seats</h3><div class="chart-canvas"><canvas id="cdTopGov"></canvas></div></div>
+      </div>
+      <div class="dash-table-wrap"><div id="cdTable"></div></div>
+
+      <div class="dash-head section-head">
+        <div><h2 id="ccTitle">Compare constituencies</h2><p class="dash-sub" id="ccSub">Pick up to four seats to put side by side.</p></div>
+        <div class="cmp-mode" id="ccMode">
+          <button type="button" data-mode="seats" class="on">Constituencies</button>
+          <button type="button" data-mode="parties">Parties</button>
+        </div>
+      </div>
+      <div class="cc-search" id="ccSearchWrap">
+        <input id="ccSearch" type="text" placeholder="Add a constituency or MP…" autocomplete="off" />
+        <div id="ccSuggest" class="cc-suggest"></div>
+      </div>
+      <div class="compare-picker" id="ccPicker"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3 id="ccRadarHead">Profile <span class="chart-note">each metric indexed to the leader = 100</span></h3><div class="chart-canvas tall"><canvas id="ccRadar"></canvas></div></div>
+        <div class="chart-card"><h3>Side by side</h3><div class="dash-table-wrap"><div id="ccTable"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ TAB: INVESTMENT ============================ -->
+  <div class="tabpane" id="tab-investment" hidden>
+    <div class="dash">
+      <div class="dash-head"><div><h1>Investment &amp; investors</h1><p class="dash-sub" id="invSub">Equity raised, all funding types combined, and who is backing the UK's scaleups.</p></div>
+        <div class="dash-filters">
+          <select id="invRegionFilter" class="dd"><option value="">All regions</option></select>
+          <select id="invSectorFilter" class="dd"><option value="">All sectors</option></select>
+        </div>
+      </div>
+      <div class="dash-active" id="investmentActive"></div>
+      <div class="kpi-row" id="invKpis"></div>
+      <div class="insight-row" id="invInsights"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Equity by sector</h3><div class="chart-canvas"><canvas id="invBySector"></canvas></div></div>
+        <div class="chart-card"><h3>All funding by sector <span class="chart-note">equity + debt + grants</span></h3><div class="chart-canvas"><canvas id="invAllBySector"></canvas></div></div>
+        <div class="chart-card"><h3>Equity by region</h3><div class="chart-canvas"><canvas id="invByRegion"></canvas></div></div>
+        <div class="chart-card"><h3>All funding by region <span class="chart-note">equity + debt + grants</span></h3><div class="chart-canvas"><canvas id="invAllByRegion"></canvas></div></div>
+        <div class="chart-card wide"><h3>Top investors here <span class="chart-note">companies backed within the filters above</span></h3><div class="chart-canvas"><canvas id="invTop"></canvas></div></div>
+      </div>
+
+      <div class="dash-head section-head"><div><h2>The investors</h2><p class="dash-sub">Who these funders are — by type, geography and reach. Independent of the filters above.</p></div></div>
+      <div class="kpi-row" id="invpKpis"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Investors by type</h3><div class="chart-canvas"><canvas id="invpByType"></canvas></div></div>
+        <div class="chart-card"><h3>Top investor countries</h3><div class="chart-canvas"><canvas id="invpByCountry"></canvas></div></div>
+        <div class="chart-card"><h3>Most active investors <span class="chart-note">across the whole dataset</span></h3><div class="chart-canvas"><canvas id="invpTop"></canvas></div></div>
+        <div class="chart-card"><h3>Publicly-backed businesses</h3><div class="chart-canvas"><canvas id="invpFunding"></canvas></div></div>
+      </div>
+      <div class="dash-table-wrap"><div id="invpTable"></div></div>
+    </div>
+  </div>
+
+  <!-- ============================ TAB: ANALYSIS ============================ -->
+  <div class="tabpane" id="tab-analysis" hidden>
+    <div class="dash">
+      <div class="dash-head"><div><h1>Analysis</h1><p class="dash-sub">Cross-cutting views — where activity concentrates, and head-to-head regional comparison.</p></div></div>
+      <div class="legend-strip" id="anSectorLegend"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Investment landscape <span class="chart-note">each sector — companies vs average raise, bubble = total equity</span></h3><div class="chart-canvas tall"><canvas id="anBubble"></canvas></div></div>
+        <div class="chart-card"><h3>Investment concentration <span class="chart-note">cumulative share of equity by sector</span></h3><div class="chart-canvas tall"><canvas id="anPareto"></canvas></div></div>
+      </div>
+      <div class="dash-head compare-head">
+        <div><h2 id="anCompareTitle">Compare regions</h2><p class="dash-sub">Pick up to four to overlay across every metric.</p></div>
+        <div class="cmp-mode" id="anCompareMode">
+          <button type="button" data-mode="regions" class="on">Regions</button>
+          <button type="button" data-mode="sectors">Sectors</button>
+        </div>
+      </div>
+      <div class="compare-picker" id="anComparePicker"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3 id="anRadarHead">Region profile <span class="chart-note">each metric indexed to the leading region = 100</span></h3><div class="chart-canvas tall"><canvas id="anRadar"></canvas></div></div>
+        <div class="chart-card"><h3>Side by side</h3><div class="dash-table-wrap"><div id="anCompareTable"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ TAB: PUBLIC SECTOR ============================ -->
+  <div class="tabpane" id="tab-public" hidden>
+    <div class="dash">
+      <div class="dash-head"><div><h1>Public sector</h1><p class="dash-sub">Scaleups holding public-sector contracts. Every buyer in this dataset is a public body.</p></div></div>
+      <div class="kpi-row" id="pubKpis"></div>
+      <div class="insight-row" id="pubInsights"></div>
+      <div class="chart-grid">
+        <div class="chart-card"><h3>Where the money comes from <span class="chart-note">all £6.8B of contract value</span></h3><div class="chart-canvas"><canvas id="pubGovSplit"></canvas></div></div>
+        <div class="chart-card"><h3>Contract value by buyer type <span class="chart-note">from each supplier's largest buyers</span></h3><div class="chart-canvas"><canvas id="pubBuyerType"></canvas></div></div>
+        <div class="chart-card"><h3>Contract value by sector</h3><div class="chart-canvas"><canvas id="pubProcSector"></canvas></div></div>
+        <div class="chart-card"><h3>Most active buyers <span class="chart-note">by number of suppliers</span></h3><div class="chart-canvas"><canvas id="pubBuyers"></canvas></div></div>
+      </div>
+      <div class="dash-table-wrap"><div id="pubTable"></div></div>
+    </div>
+  </div>
+
+  <!-- ============================ HELP OVERLAY ============================ -->
+  <div id="helpOverlay" aria-hidden="true">
+    <div class="help-card" role="dialog" aria-label="How to read this map">
+      <div class="help-head"><span>How to read this map</span><button id="helpClose" aria-label="Close">&times;</button></div>
+      <div class="help-body">
+        <h4>About this dashboard</h4>
+        <p id="helpIntro">Explore where the UK's high-growth companies — scaleups — cluster, who funds them, and how they break down by sector and region. Use the tabs at the top; the <strong>Map</strong> tab is interactive.</p>
+        <h4>On the map</h4>
+        <ul class="help-legend">
+          <li><span class="dot" style="background:#2F6DB5"></span><strong>Dots</strong> are individual companies, coloured by sector.</li>
+          <li><span class="poly"></span><strong>Shaded areas</strong> outline a cluster — companies concentrated in one place.</li>
+        </ul>
+        <h4>How to use it</h4>
+        <ol>
+          <li>Open the <strong>Clusters</strong> dropdown and pick sectors; hover a cluster to highlight it, click for details.</li>
+          <li>Use <strong>Regions</strong>, <strong>Investors</strong>, <strong>Primes</strong> and <strong>Procurement</strong> to filter and overlay.</li>
+          <li>The other tabs give charts and breakdowns for the same data.</li>
+        </ol>
+      </div>
+      <div class="help-foot"><button id="helpGotIt">Got it</button></div>
+    </div>
+  </div>
+
+</div><!-- /.app -->
+
+  <!-- Libraries -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/leaflet-image@0.4.0/leaflet-image.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- Controller (dashboard + map) -->
+  <script src="js/gate.js?v=af889295"></script>
+<script src="js/app.js?v=62"></script>
+</body>
+</html>

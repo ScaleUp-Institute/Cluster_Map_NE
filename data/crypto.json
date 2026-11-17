@@ -1,0 +1,13 @@
+{
+ "v": 1,
+ "kdf": "PBKDF2-SHA256",
+ "iter": 600000,
+ "salt": "6oQ3nwMgbAcnCwRsLH6byg==",
+ "checkText": "scaleup-map-2026",
+ "check": "ohJ1UNAGd7OPZkdVWj6V0ncw1ZjjiPhhO7XcGhMLjJBthhzjq+SNqz3H3Q8=",
+ "files": {
+  "data/master.json": "data/master.json.enc",
+  "data/constituencies.json": "data/constituencies.json.enc"
+ },
+ "scopeLabel": "North East"
+}
