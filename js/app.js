@@ -428,14 +428,24 @@ const DotLayer = L.Layer.extend({
         // zoom that wash is invisible -- the same way a funded selection was.
         // Both get drawn at selection weight instead.
         const sel = (S.dotsAreSelection || scoped()) && !isNoise;
-        const r = fem ? 2.5 : (isNoise ? 1.6 : (byS ? 2.9 : (sel ? 2.7 : 1.9)));
+        /* An unclustered company used to be drawn at 1.6px in grey at 40%
+           opacity, which in practice meant not drawn at all: in the North East
+           edition Defence, Financial Services and Life Sciences are 100%
+           unclustered, so choosing one of them showed an empty map. It now
+           takes its sector colour like every other dot. The shaded hull
+           already says what is in a cluster, so the dot does not have to:
+           staying a little smaller and lighter, and skipping the outline, is
+           enough to tell them apart when you look. A region build carries a
+           few hundred dots rather than 19,000, so there it gets full weight. */
+        const r = fem ? 2.5 : (isNoise ? (scoped()?2.6:2.2) : (byS ? 2.9 : (sel ? 2.7 : 1.9)));
         ctx.beginPath(); ctx.arc(pt.x,pt.y, r, 0, 6.283);
-        ctx.fillStyle = fem ? FEM_DOT : (isNoise ? NOISE_COLOR : (byS ? p.color : BASE_DOT));
+        ctx.fillStyle = fem ? FEM_DOT : (byS ? p.color : BASE_DOT);
         // Base layer (no sector) is a light, even wash; sector view is bold + outlined.
-        ctx.globalAlpha = fem ? 0.95 : (isNoise ? 0.4 : (byS ? 0.95 : (sel ? 0.92 : 0.4)));
+        ctx.globalAlpha = fem ? 0.95 : (isNoise ? (scoped()?0.92:0.8) : (byS ? 0.95 : (sel ? 0.92 : 0.4)));
         ctx.fill();
-        // crisp black outline only when coloured by sector (fewer, meaningful dots)
-        if(fem || sel || (byS && !isNoise)){ ctx.globalAlpha=0.55; ctx.lineWidth=0.6; ctx.strokeStyle='#000000'; ctx.stroke(); }
+        // Outlined whenever it is coloured by sector; lighter on the unclustered
+        // ones, which is what now separates them from the clustered dots.
+        if(fem || sel || byS){ ctx.globalAlpha=isNoise?0.32:0.55; ctx.lineWidth=0.6; ctx.strokeStyle='#000000'; ctx.stroke(); }
       }
     }
     ctx.globalAlpha=1;
@@ -820,7 +830,9 @@ map.on('click', e=>{
    (canvas dots aren't real DOM nodes, so we resolve hover ourselves). */
 let hoveredHull = null;
 const hoverDot = L.circleMarker([0,0], { radius:6, weight:2, color:'#ffffff', fillColor:'#333', fillOpacity:1, opacity:1, interactive:false });
-function dotColor(c){ if(S.femOnly) return FEM_DOT; if(!S.selSectors.size) return BASE_DOT; return c.noise?NOISE_COLOR:c.color; }
+/* Matches the canvas above: an unclustered company is its sector's colour,
+   not grey, so hovering one does not change the colour under the cursor. */
+function dotColor(c){ if(S.femOnly) return FEM_DOT; if(!S.selSectors.size) return BASE_DOT; return c.color; }
 function dotNearCompany(e){
   if(S.displayMode==='polygons' || S.markersShown || !S.rendered.length) return null;
   const cp=e.containerPoint, lat=e.latlng.lat, lng=e.latlng.lng;
