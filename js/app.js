@@ -513,6 +513,10 @@ getJSON('data/master.json').then(M=>{
   S.all.forEach(c=>{ S.byNum[c.num]=c; (S.secsByNum[c.num]||(S.secsByNum[c.num]=new Set())).add(c.sector); });
   S.primes=M.primes||{}; S.procurement=M.procurement||{};
   S.regionGeo=M.regionGeo;   // ITL1 boundaries, already renamed + simplified for drawing
+  /* The row order the positional mappings have to agree with. Kept on S
+     because M is this callback's parameter, and stampOk() runs much later,
+     when constituencies.json or areas.json is fetched. */
+  S.rowStamp=(M.meta&&M.meta.rowStamp)||null;
   // A region build announces itself here; see SCOPE above.
   const sc=(M.meta&&M.meta.scope)||null;
   if(sc && sc.region){ SCOPE_REGION=sc.region; SCOPE_LABEL=sc.label||regionShort(sc.region); }
@@ -1272,7 +1276,7 @@ function loadAreas(){
     S.areaData=d;
     // companyCouncil is index-aligned to master.companies, exactly as
     // companyConstituency is, and S.all is built from that array in order.
-    const map=d.companyCouncil||[];
+    const map=stampOk(d,'areas.json') ? (d.companyCouncil||[]) : [];
     S.all.forEach((c,i)=>{ c.ladIdx=(map[i]==null?-1:map[i]); });
     areaPrepareStats();
     if(el) el.textContent='';
@@ -1432,6 +1436,20 @@ function renderAreaList(){
 }
 function afterAreaChange(){ renderAreas(); onFilterChange({region:true}); }
 
+/* A positional mapping is only valid for the exact master row order it was
+   built against. Both files carry that stamp; if it does not match, the
+   mapping would attribute companies to the wrong seat or council, which is
+   worse than attributing them to none. Refuse it and say so. */
+function stampOk(d, what){
+  const want=S.rowStamp, got=(d&&d.meta||{}).rowStamp;
+  if(!want || !got) return true;            // older file, nothing to check
+  if(want===got) return true;
+  console.error('%s was built against a different version of the company data '
+    +'(%s vs %s). Rebuild it with its tool; ignoring the mapping rather than '
+    +'placing companies wrongly.', what, got, want);
+  return false;
+}
+
 let conLayer=null;
 
 function loadConstituencies(){
@@ -1442,7 +1460,7 @@ function loadConstituencies(){
     S.conData=d;
     // companyConstituency is index-aligned to master.companies, and S.all is built
     // from that array in order, so positional indexing is safe here.
-    const map=d.companyConstituency||[];
+    const map=stampOk(d,'constituencies.json') ? (d.companyConstituency||[]) : [];
     S.all.forEach((c,i)=>{ c.conIdx=(map[i]==null?-1:map[i]); });
     conPrepareStats();
     if(el) el.textContent='';
