@@ -7,7 +7,7 @@
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.2.3/css/flag-icons.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=78" />
+  <link rel="stylesheet" href="css/styles.css?v=79" />
 </head>
 <body>
 <div class="app">
@@ -391,6 +391,17 @@
       <div class="dash-table-wrap"><div id="secTable"></div></div>
       <p class="tbl-head-note">How to read this table <button type="button" class="info-btn" aria-expanded="false" aria-controls="secTableNote" aria-label="What this table means">i</button></p>
       <p class="tbl-note" id="secTableNote" hidden>Companies, jobs, turnover and funding in each sector. <strong>Equity funding</strong> is capital raised; <strong>grant funding</strong> is Innovate UK awards. A company working across several sectors appears in each one, so the columns add up to more than the totals above.</p>
+
+      <div class="dash-head section-head"><div><h2>The companies <span class="scope-badge all" id="coScopeBadge"></span></h2>
+        <p class="dash-sub">Every business behind the figures above. Follows the sector and the area chosen on this tab.</p></div>
+        <div class="dash-filters">
+          <div class="inv-search-wrap co-search">
+            <input id="coSearch" type="text" placeholder="Search a company or investor…" autocomplete="off" />
+          </div>
+        </div>
+      </div>
+      <div class="dash-table-wrap"><div id="coTable"></div></div>
+      <p class="tbl-head-note" id="coTableFoot"></p>
     </div>
   </div>
 
@@ -561,6 +572,6 @@
 
   <!-- Controller (dashboard + map) -->
   <script src="js/gate.js?v=af889295"></script>
-<script src="js/app.js?v=78"></script>
+<script src="js/app.js?v=79"></script>
 </body>
 </html>

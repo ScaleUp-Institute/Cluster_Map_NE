@@ -765,3 +765,23 @@ h2,h3,h4{font-family:var(--font-head);}
 .update-bar .ub-x{appearance:none; border:0; background:transparent; cursor:pointer;
   color:var(--faint); font-size:17px; line-height:1; padding:0 4px;}
 .update-bar .ub-x:hover{color:var(--ink);}
+
+/* the named-company list under the Sectors tab */
+.co-search{min-width:240px;}
+.co-table td.l{vertical-align:top;}
+.co-table .co-name{font-weight:600; color:var(--ink);}
+.co-table .co-none{color:var(--faint);}
+.co-tags{display:inline-flex; flex-wrap:wrap; gap:4px; margin-left:8px; vertical-align:middle;}
+.co-tag{display:inline-block; padding:2px 7px; border-radius:999px; font:700 9.5px/1.5 var(--font-body);
+  text-transform:uppercase; letter-spacing:.03em; white-space:nowrap;}
+.co-tag.t-fem{background:rgba(224,71,158,.14); color:#c23c86;}
+.co-tag.t-bbb{background:rgba(214,69,80,.14); color:#c03b46;}
+.co-tag.t-iuk{background:rgba(142,111,207,.16); color:#7a5bbd;}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .co-tag.t-fem{color:#f08cc3;}
+  :root:not([data-theme="light"]) .co-tag.t-bbb{color:#f08a92;}
+  :root:not([data-theme="light"]) .co-tag.t-iuk{color:#b9a3e8;}
+}
+:root[data-theme="dark"] .co-tag.t-fem{color:#f08cc3;}
+:root[data-theme="dark"] .co-tag.t-bbb{color:#f08a92;}
+:root[data-theme="dark"] .co-tag.t-iuk{color:#b9a3e8;}

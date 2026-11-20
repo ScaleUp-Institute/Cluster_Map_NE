@@ -271,6 +271,7 @@ const S = {
      index for a council and all its members for a city region. Everything that
      filters reads _areaSet, so neither level needs its own test. */
   areaData:null, areaLevel:'off', areaQuery:'', selArea:null, _areaSet:null,
+  coQuery:'',
   ccMode:'seats', ccSeats:new Set(), ccParties:new Set(),
   detailOpen:false, detailUserClosed:false
 };
@@ -2035,6 +2036,9 @@ function boot(){
   }
   labelFundingCounts(); syncOriginHint();
   watchForNewBuild();
+  const coSearch=$('coSearch');
+  if(coSearch) coSearch.addEventListener('input',()=>{
+    S.coQuery=coSearch.value; renderCompanyList(); });
   initInfoTips();
 
   // show every investor-backed company, without picking a specific investor
@@ -2337,6 +2341,103 @@ function renderSortable(id, columns, data, def){ const el=$(id); if(!el) return;
     renderSortable(id,columns,data); }));
 }
 
+/* ============================================================ THE COMPANY LIST
+   Named businesses rather than totals, under the Sectors tab.
+
+   Held to the same line the map draws: a dot's popup gives a name, its
+   sector, its region and who backs it, and no turnover, headcount or equity.
+   This shows the same fields for the same reason. Money on this tool is
+   published in aggregate and not against a name, and a table is the wrong
+   place to change that.
+
+   The company number is left out as well, though the popup carries one. One
+   at a time is a lookup; thousands of them in a sortable table is a joinable
+   dataset, which is a different thing to hand over. */
+const CO_PAGE = 200;
+let coSort = {col:'name', dir:'asc'};
+
+function coSectorsOf(c){
+  const set = S.secsByNum[c.num];
+  return set ? [...set].sort() : (c.sector ? [c.sector] : []);
+}
+function coRows(){
+  // The same population the rest of the tab is drawn from, narrowed by this
+  // tab's own sector picker, so the list cannot disagree with the table above.
+  const f = xf('sectors');
+  const L = fLists(f);
+  let rows = uniqueCompanies(L.k);
+  const q = (S.coQuery||'').trim().toLowerCase();
+  if(q) rows = rows.filter(c =>
+    (c.name||'').toLowerCase().includes(q) ||
+    (c.investors||[]).some(i => i.toLowerCase().includes(q)));
+  const dir = coSort.dir==='asc' ? 1 : -1;
+  const key = {
+    name:    c => (c.name||'').toLowerCase(),
+    sector:  c => coSectorsOf(c)[0] || '',
+    region:  c => regionShort(c.region||''),
+    backers: c => (c.investors||[]).length,
+  }[coSort.col] || (c => (c.name||'').toLowerCase());
+  rows.sort((a,b)=>{ const x=key(a), y=key(b);
+    if(typeof x==='string' || typeof y==='string') return String(x).localeCompare(String(y))*dir;
+    return ((x||0)-(y||0))*dir; });
+  return rows;
+}
+function coTag(txt, cls){ return '<span class="co-tag '+cls+'">'+esc(txt)+'</span>'; }
+function renderCompanyList(){
+  const el=$('coTable'); if(!el) return;
+  const all=coRows(), shown=all.slice(0, CO_PAGE);
+  const badge=$('coScopeBadge');
+  if(badge) badge.textContent = nf(all.length)+(all.length===1?' company':' companies');
+
+  /* A region build holds one region, so a Region column would read the same
+     on every row. Dropped there, the way the by-region charts and the Regions
+     tab already are. */
+  const cols=[
+    {k:'name',    label:'Company',  align:'left'},
+    {k:'sector',  label:'Sector',   align:'left'},
+  ].concat(scoped() ? [] : [{k:'region', label:'Region', align:'left'}])
+   .concat([{k:'backers', label:'Investors', align:'right'}]);
+  const head='<tr>'+cols.map(c=>{
+    const on=coSort.col===c.k, ar=on?(coSort.dir==='asc'?'▲':'▼'):'';
+    return '<th class="'+(c.align==='left'?'l':'r')+(on?' active':'')+'" data-k="'+c.k+
+      '" title="Sort by '+esc(c.label)+'">'+esc(c.label)+'<span class="sar">'+ar+'</span></th>';
+  }).join('')+'</tr>';
+
+  const body=shown.map(c=>{
+    const secs=coSectorsOf(c);
+    const inv=c.investors||[];
+    const tags=[];
+    if(c.women) tags.push(coTag('Women-led','t-fem'));
+    if(S.flags.bbb.has(c.num)) tags.push(coTag('BBB','t-bbb'));
+    if(S.flags.iuk.has(c.num)) tags.push(coTag('Innovate UK','t-iuk'));
+    return '<tr>'+
+      '<td class="l"><span class="co-name">'+esc(c.name||'—')+'</span>'+
+        (tags.length?'<span class="co-tags">'+tags.join('')+'</span>':'')+'</td>'+
+      '<td class="l">'+(secs.length
+        ? secs.map(s=>swatch(SECTOR_COLORS[s])+esc(s)).join('<br>')
+        : '—')+'</td>'+
+      (scoped() ? '' : '<td class="l">'+esc(regionShort(c.region||'—'))+'</td>')+
+      '<td class="r">'+(inv.length
+        ? '<span title="'+esc(inv.slice(0,25).join(', '))+'">'+nf(inv.length)+'</span>'
+        : '<span class="co-none">—</span>')+'</td></tr>';
+  }).join('');
+
+  el.innerHTML = all.length
+    ? '<table class="dtable sortable co-table"><thead>'+head+'</thead><tbody>'+body+'</tbody></table>'
+    : '<p class="proc-empty">No companies match this search.</p>';
+  el.querySelectorAll('th').forEach(th=>th.addEventListener('click',()=>{
+    const k=th.dataset.k;
+    if(coSort.col===k) coSort.dir = coSort.dir==='asc' ? 'desc' : 'asc';
+    else coSort = {col:k, dir: (k==='backers' ? 'desc' : 'asc')};
+    renderCompanyList(); }));
+
+  const foot=$('coTableFoot');
+  if(foot) foot.textContent = all.length > CO_PAGE
+    ? 'Showing the first '+nf(CO_PAGE)+' of '+nf(all.length)+
+      '. Pick a sector above, or search, to narrow it.'
+    : (all.length ? 'All '+nf(all.length)+' shown.' : '');
+}
+
 /* ---- tab switching ---- */
 function setTab(t){ S.tab=t;
   document.querySelectorAll('.dashtabs button[data-tab]').forEach(b=>{ if(b.dataset.tab===t) b.setAttribute('aria-selected','true'); else b.removeAttribute('aria-selected'); });
@@ -2512,6 +2613,7 @@ function renderSectorsDash(){ const f=xf('sectors'), L=fLists(f), s=aggregate(L.
     insightCard('spark','Most capital-intensive', bI?bI.k:'—', bI?money(bI.o.n?bI.o.inv/bI.o.n:0)+' raised / company':'', bI?SECTOR_COLORS[bI.k]:null) +
     insightCard('female','Most women-led', bF?bF.k:'—', bF?(bF.o.women/bF.o.n*100).toFixed(0)+'% women-led':'', bF?SECTOR_COLORS[bF.k]:null);
   renderChips('sectors');
+  renderCompanyList();
 }
 
 /* ---- Regions ---- */
