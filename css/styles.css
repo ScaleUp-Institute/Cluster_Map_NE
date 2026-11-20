@@ -752,3 +752,16 @@ h2,h3,h4{font-family:var(--font-head);}
    tab never quotes figures for somewhere it does not name. */
 .dchip-scope{background:var(--ink); }
 .dchip-scope .x{background:rgba(255,255,255,.28);}
+
+/* the bar offering a reload when a newer build has been published */
+.update-bar{position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:5000;
+  display:flex; align-items:center; gap:12px; padding:10px 12px 10px 16px;
+  border:1px solid var(--line-strong); border-radius:999px; background:var(--surface);
+  box-shadow:0 10px 30px rgba(12,34,51,.22); color:var(--ink-2);
+  font:500 12.5px/1 var(--font-body); max-width:calc(100vw - 32px);}
+.update-bar .ub-go{appearance:none; border:0; border-radius:999px; cursor:pointer;
+  background:var(--accent); color:#fff; font:700 12.5px/1 var(--font-body); padding:8px 14px;}
+.update-bar .ub-go:hover{filter:brightness(1.06);}
+.update-bar .ub-x{appearance:none; border:0; background:transparent; cursor:pointer;
+  color:var(--faint); font-size:17px; line-height:1; padding:0 4px;}
+.update-bar .ub-x:hover{color:var(--ink);}

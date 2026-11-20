@@ -1794,6 +1794,72 @@ function renderProcSummary(all, matching, mapped, unmapped){
       ' hold public contracts but have no location on record, so they are counted in the figures above without appearing on the map.</div>':'');
 }
 
+/* ================================================= A NEWER BUILD IS PUBLISHED
+   Someone with this open keeps the version they loaded until they reload. The
+   deploy writes version.json; this notices when it changes and decides whether
+   reloading would interrupt anything.
+
+   A reload is safe for the viewer: js/gate.js keeps its key in sessionStorage,
+   so nobody is sent back to the passphrase screen. What a reload does cost is
+   whatever is on screen -- the filters, the selected area, the zoom -- so it
+   happens on its own only when nothing is going on. */
+const BUILD_POLL_MS = 180000;       // three minutes
+let BUILD_ID = null, buildPrompted = false, lastSeenActivity = Date.now();
+['pointerdown','keydown','wheel','touchstart'].forEach(ev =>
+  window.addEventListener(ev, () => { lastSeenActivity = Date.now(); },
+    {passive:true, capture:true}));
+
+function fetchBuildId(){
+  // no-store stops the browser answering from its own cache; the query stops
+  // a CDN in front of the host answering from its edge cache.
+  return fetch('version.json?t=' + Date.now(), {cache:'no-store'})
+    .then(r => r.ok ? r.json() : null)
+    .then(v => (v && v.id) || null)
+    .catch(() => null);
+}
+function showUpdateBar(){
+  if(buildPrompted) return;
+  buildPrompted = true;
+  const bar = document.createElement('div');
+  bar.className = 'update-bar';
+  bar.innerHTML = '<span>A newer version of this map has been published.</span>' +
+    '<button type="button" class="ub-go">Reload</button>' +
+    '<button type="button" class="ub-x" aria-label="Dismiss">&times;</button>';
+  document.body.appendChild(bar);
+  bar.querySelector('.ub-go').addEventListener('click', () => location.reload());
+  bar.querySelector('.ub-x').addEventListener('click', () => bar.remove());
+}
+/* Kept apart from the acting on it so the decision can be checked directly,
+   which beats reloading a page to find out what it would have done. */
+function updateAction(){
+  // Out of sight: reload now, so it is current whenever they look again.
+  if(document.visibilityState === 'hidden') return 'reload';
+  // In sight but untouched for a while, with nothing set up on screen: the
+  // reload costs nothing, so take it.
+  const idle = Date.now() - lastSeenActivity > 90000;
+  if(idle && !hasActiveFilter() && S.tab === 'map') return 'reload';
+  return 'offer';
+}
+function onNewBuild(){
+  if(updateAction() === 'reload') location.reload(); else showUpdateBar();
+}
+function checkForNewBuild(){
+  return fetchBuildId().then(id => {
+    if(!id) return;
+    if(BUILD_ID === null){ BUILD_ID = id; return; }   // first look, nothing to compare
+    if(id !== BUILD_ID) onNewBuild();
+  });
+}
+function watchForNewBuild(){
+  checkForNewBuild();
+  setInterval(checkForNewBuild, BUILD_POLL_MS);
+  // Coming back to the tab is the moment it matters most, and the moment a
+  // reload is least likely to interrupt anything.
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') checkForNewBuild();
+  });
+}
+
 /* =================================================================== ORCHESTRATION */
 /* TEMPORARY: a bit of fun on the Women-Led filter. The clip is gitignored, so
    if it is not being served the player simply stays hidden rather than showing
@@ -1968,6 +2034,7 @@ function boot(){
     makeBarDraggable(abar);
   }
   labelFundingCounts(); syncOriginHint();
+  watchForNewBuild();
   initInfoTips();
 
   // show every investor-backed company, without picking a specific investor
